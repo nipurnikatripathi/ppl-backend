@@ -1,3 +1,5 @@
+// userSchema : for registration page
+// values of user object in registeration component is save in the same order as present in userSchema
 var mongoose = require("mongoose");
 var userSchema = mongoose.Schema(
   {
@@ -10,3 +12,4 @@ var userSchema = mongoose.Schema(
   { versionKey: false }
 );
 module.exports = mongoose.model("signupppl", userSchema);
+// collection name in backend : "signupppl"
