@@ -1,19 +1,19 @@
 var express = require("express");
 var path = require("path");
 var app = express();
+var mongoose = require("mongoose");
+var multer = require("multer");
 var bodyParser = require("body-parser");
-// console.log(__dirname, path.join(__dirname, 'public'));
+const cors = require("cors");
 app.use(express.static(path.join(__dirname, "uploads")));
 app.use(bodyParser.urlencoded({ extended: false }));
-var mongoose = require("mongoose");
 // collection name - signupppl for registered user collection
 var signupppl = require("./userSchema");
-// collection name - categorySchema for category collection
+// collection name - categorycollection for category collection
 var categorySchema = require("./categorySchema");
-
+// collection name - postcollection for post collection
 var postSchema = require("./postSchema");
 
-const cors = require("cors");
 app.use(cors());
 app.use(cors({ origin: true }));
 
@@ -39,7 +39,6 @@ app.post("/register", (req, res) => {
 });
 
 // post call for login at /login API
-
 app.post("/login", function (req, res) {
   console.log(req.body);
   signupppl.findOne({ $and: [{ email: req.body.email }] }, (error, data) => {
@@ -87,7 +86,6 @@ app.post("/addusername", (req, res) => {
   signupppl.find({ email: req.body.userEmail }, function (err, data) {
     if (data.length) {
       console.log("username found", data);
-      // console.log("username: ",data);
       res.send(data);
     } else if (err) {
       console.log("error at server side in addusername api");
@@ -96,38 +94,11 @@ app.post("/addusername", (req, res) => {
       res.send(false);
     }
   });
-  // res.send(true)
-});
-// categorySchema.find({ categoryName: req.body.category },( error, data ) => {
-//   console.log("category after condition", data);
-//   if (data.length) {
-//     console.log("category alredy exists !", data);
-//     res.send(false);
-//   }
-//   else if (error) {
-//     console.log("error in adding")
-//   }
-//   else {
-//     categorySchema.create({ categoryName: req.body.category }, function (result ) {
-//       console.log("new category arrived", req.body);
-//       res.send(req.body);
-//     });
-//   }
-// });
-
-//get call for category
-app.get("/getusername", (req, res) => {
-  console.log("get call");
-
-  signupppl.find({}, function (err, data) {
-    console.log("username after condition", data);
-    res.send(data);
-  });
 });
 
+// get call for category
 app.get("/getCategory", (req, res) => {
   console.log("get call");
-
   categorySchema.find({}, function (err, data) {
     console.log("category after condition", data);
     res.send(data);
@@ -137,7 +108,6 @@ app.get("/getCategory", (req, res) => {
 // delete category
 app.delete("/deleteCategory", (req, res) => {
   console.log("category received in delete api :", req.body);
-
   console.log("category id :", req.body._id);
 
   categorySchema.deleteOne({ _id: req.body._id }, (error, data) => {
@@ -148,52 +118,22 @@ app.delete("/deleteCategory", (req, res) => {
     } else {
       res.send(false);
     }
-    //   }
-    // } else {
-    //   res.send({ msg: "invalid email" });
-    //   console.log("invalid email");
-    // }
   });
 });
 
 // get call for username
-
 app.get("/getUsername", (req, res) => {
   signupppl.find({}, function (err, data) {
     if (data) {
-      console.log("userdata in get call", data);
-      res.send(true);
+      console.log("userdata in get call@@@@", data);
+      res.send(data);
     } else {
       console.log("error in getusername Api call");
     }
   });
-
-  // signupppl.find({} , function (err, data) {
-  //   console.log("username:",data);
-  //   res.send(data);
-  //   }
-  // )
 });
 
-// app.post("/addCategory", (req, res) => {
-//   categorySchema.find({$and: [{name: req.body.categorySchema}], function (err, data) {
-//     if (data.length) {
-//       console.log("category already exists", data);
-//       res.send("category already exists");
-//     } else if {
-//       categorySchema.create(req.body, function (result) {
-//         console.log("new data arrived", req.body);
-//         res.send(true);
-//       })
-//     }
-
-//   }}
-// )}
-// )
-
-var multer = require("multer");
-// var upload = multer({dest:'uploadImages/'});
-
+// for storing image file in disk storage
 var storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, "./uploads");
@@ -203,13 +143,13 @@ var storage = multer.diskStorage({
   },
 });
 
-// app.use('/static', express.static(path.join(__dirname, 'public')))
 var upload = multer({ storage: storage });
+
+// post call for upload post
 app.post("/uploadPost", upload.single("selectedFile"), function (req, res) {
   if (req.file) {
     console.log("req.file.filename", req.file.filename);
     req.body.filename = req.file.filename;
-    // console.log("request:", req);
     postSchema.create(req.body, function (result) {
       console.log("new data arrived", req.body);
       res.send({ msg: "post saveds on datatbase!" });
@@ -217,28 +157,159 @@ app.post("/uploadPost", upload.single("selectedFile"), function (req, res) {
   }
 });
 
-// app.get("/getUploadPost", (req, res) => {
-//   postSchema
-//     .find({}, function (err, data) {
-//       console.log("category after condition", data);
-//       res.send(data);
-//     })
-//     .sort({ currentdate: -1 });
-// });
-app.get("/getUploadPost", (req, res) => {
+// post call for likes in upload post
+app.post("/likes", (req, res) => {
+  console.log("likes at server side -", req.body);
+  // if postId and userEmail found in database
+  postSchema.find(
+    { $and: [{ _id: req.body.postId }, { likes: req.body.userEmail }] },
+    function (error, data) {
+      console.log("data outside find$$$$", data);
+      // if data is found
+      if (data.length >= 1) {
+        console.log("data before pulling userEmail from array", data);
+        // find the post by its postId and pull the userEmail from likes array
+        postSchema.findByIdAndUpdate(
+          req.body.postId,
+          { $pull: { likes: req.body.userEmail } },
+          { safe: true },
+          function (err, model) {
+            if (err) {
+              console.log("err in find and update");
+              // return res.send(err);
+            } else {
+              // console.log(
+              //   "after pulling data from array in likes: ",
+              //   res.json(model)
+              // );
+              return res.json(model);
+            }
+          }
+        );
+      }
+      // if postId and userEmail not found in database
+      else {
+        // find the post by its postId and push the userEmail in likes array
+        console.log("data before pushing userEmail in array", data);
+
+        postSchema.findByIdAndUpdate(
+          req.body.postId,
+          { $push: { likes: req.body.userEmail } },
+          { safe: true },
+          function (err, model) {
+            if (err) {
+              console.log("err in find and update");
+              // return res.send(err);
+            } else {
+              //console.log("after pushing data from array in likes: ",model);
+              // console.log(
+              //   "after pushing data from array in likes: ",
+              //   res.json(model)
+              // );
+              return res.json(model);
+            }
+          }
+        );
+      }
+    }
+  );
+});
+
+//post call for comments in upload post
+app.post("/comments", (req, res) => {
+  console.log("comments at server side -", req.body);
+  // find the post by its postId and update the comment array by pushing object having comment string and userEmail
+  postSchema.findByIdAndUpdate(
+    req.body.postId,
+    { $push: { comments: req.body } },
+    { safe: true },
+    function (err, model) {
+      if (err) {
+        console.log("err in find and update");
+        return res.send(err);
+      } else {
+        console.log("model in comments", model);
+        //console.log(res.json(model));
+        return res.json(model);
+      }
+    }
+  );
+});
+
+// Post call for single post to fetch single data from database
+app.post("/singlePost", (req, res) => {
+  console.log("single post id in single post API @@@", req.body.singlepostId);
   postSchema
-    .find({})
-    .sort({ currentdate: -1 })
-    .populate('category userid')
+    .find(
+      { _id: req.body.singlepostId }
+      //   , function (err, data) {
+      //   if (data.length) {
+      //     console.log("data found single post!", data);
+      //     // res.send(false);
+      //   } else if (err) {
+      //     console.log("error");
+      //   } else {
+      //     // signupppl.create(req.body, function (result) {
+      //     console.log("data not found single post!");
+      //     // res.send(true);
+      //   }
+      // }
+    )
+    .populate("category userid")
     .exec(function (err, data) {
       if (err) throw err;
       else {
-        console.log("populate data", data);
+        console.log("populate data in single post api", data);
         res.send(data);
       }
     });
 });
 
+// postSchema.find({ _id: req.body.singlepostId }),
+//   function (err, data) {
+//     console.log("data", data);
+//     if (data) {
+//       console.log("single post data in server side ", data);
+//       //res.send(data);
+//     } else {
+//       console.log("err");
+//       //   res.send(false);
+//     }
+//   };
+
+// .populate("category userid")
+// .exec(function (err, data) {
+//   if (err) throw err;
+//   else {
+//     console.log("populate data in single post api", data);
+//     res.send(data);
+//   }
+// });
+// ).populate("category userid")
+// .exec(function (err, data) {
+//   if (err) throw err;
+//   else {
+//     console.log("populate data", data);
+//     res.send(data);
+//   }
+//});
+
+// get call for upload post
+app.get("/getUploadPost", (req, res) => {
+  postSchema
+    .find({})
+    .sort({ currentdate: -1 })
+    .populate("category userid")
+    .exec(function (err, data) {
+      if (err) throw err;
+      else {
+        console.log("populate data in upload post api", data);
+        res.send(data);
+      }
+    });
+});
+
+// server listening at 8081 port
 var server = app.listen(8081, () => {
   var host = server.address().address;
   var port = server.address().port;
